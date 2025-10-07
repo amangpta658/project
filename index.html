@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BMI Calculator</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#60a5fa;--muted:#94a3b8;--success:#16a34a;--warning:#f59e0b;--danger:#ef4444}
+    *{box-sizing:border-box}
+    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;min-height:100vh;margin:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071021 0%,#071523 100%);color:#e6eef8;padding:24px}
+    .card{width:100%;max-width:720px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px;padding:22px;box-shadow:0 8px 24px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.04)}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="number"], select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;font-size:15px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .btn{padding:10px 14px;border-radius:8px;border:0;background:var(--accent);color:#04263b;font-weight:600;cursor:pointer}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .result{margin-top:18px;padding:14px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);display:flex;align-items:center;justify-content:space-between}
+    .result .score{font-size:26px;font-weight:700}
+    .category{padding:8px 12px;border-radius:999px;font-weight:700}
+    .under{background:rgba(96,165,250,0.08);color:var(--accent);border:1px solid rgba(96,165,250,0.12)}
+    .normal{background:rgba(16,185,129,0.08);color:var(--success);border:1px solid rgba(16,185,129,0.12)}
+    .over{background:rgba(245,158,11,0.08);color:var(--warning);border:1px solid rgba(245,158,11,0.12)}
+    .obese{background:rgba(239,68,68,0.08);color:var(--danger);border:1px solid rgba(239,68,68,0.12)}
+    .help{font-size:13px;color:var(--muted);margin-top:8px}
+    @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <h1>BMI Calculator</h1>
+    <p class="lead">Enter your weight and height, choose units, and hit Calculate.</p>
+
+    <div class="grid">
+      <div>
+        <label for="weight">Weight</label>
+        <div style="display:flex;gap:8px">
+          <input id="weight" type="number" min="1" step="0.1" placeholder="e.g. 70" aria-label="weight" />
+          <select id="weightUnit" aria-label="weight units">
+            <option value="kg">kg</option>
+            <option value="lb">lb</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label for="height">Height</label>
+        <div style="display:flex;gap:8px">
+          <input id="height" type="number" min="1" step="0.1" placeholder="e.g. 175" aria-label="height" />
+          <select id="heightUnit" aria-label="height units">
+            <option value="cm">cm</option>
+            <option value="m">m</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn" id="calcBtn">Calculate BMI</button>
+      <button class="btn secondary" id="resetBtn">Reset</button>
+    </div>
+
+    <div id="output" class="result" aria-live="polite" style="display:none">
+      <div>
+        <div class="score" id="bmiValue">0.0</div>
+        <div class="help" id="bmiText">Your BMI will appear here.</div>
+      </div>
+      <div id="catPill" class="category normal">—</div>
+    </div>
+
+    <p class="help">BMI = weight (kg) / height (m)<sup>2</sup>. If you use lb/in, the calculator converts units for you.</p>
+  </main>
+
+  <script>
+    const weightEl = document.getElementById('weight');
+    const heightEl = document.getElementById('height');
+    const weightUnitEl = document.getElementById('weightUnit');
+    const heightUnitEl = document.getElementById('heightUnit');
+    const calcBtn = document.getElementById('calcBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const output = document.getElementById('output');
+    const bmiValue = document.getElementById('bmiValue');
+    const bmiText = document.getElementById('bmiText');
+    const catPill = document.getElementById('catPill');
+
+    function toKg(weight, unit){
+      if(!weight) return 0;
+      unit = unit || 'kg';
+      if(unit === 'kg') return parseFloat(weight);
+      // pounds to kg
+      if(unit === 'lb') return parseFloat(weight) * 0.45359237;
+      return parseFloat(weight);
+    }
+
+    function toMeters(height, unit){
+      if(!height) return 0;
+      unit = unit || 'cm';
+      if(unit === 'm') return parseFloat(height);
+      if(unit === 'cm') return parseFloat(height) / 100;
+      if(unit === 'in') return parseFloat(height) * 0.0254;
+      return parseFloat(height);
+    }
+
+    function getCategory(bmi){
+      if(bmi === 0 || isNaN(bmi)) return {text:'—', cls:''};
+      if(bmi < 18.5) return {text:'Underweight', cls:'under'};
+      if(bmi < 25) return {text:'Normal', cls:'normal'};
+      if(bmi < 30) return {text:'Overweight', cls:'over'};
+      return {text:'Obese', cls:'obese'};
+    }
+
+    function calculateBMI(){
+      const w = parseFloat(weightEl.value);
+      const h = parseFloat(heightEl.value);
+      const wUnit = weightUnitEl.value;
+      const hUnit = heightUnitEl.value;
+
+      if(!w || !h){
+        output.style.display = 'flex';
+        bmiValue.textContent = '—';
+        bmiText.textContent = 'Please enter valid weight and height.';
+        catPill.textContent = '—';
+        catPill.className = 'category';
+        return;
+      }
+
+      const weightKg = toKg(w, wUnit);
+      const heightM = toMeters(h, hUnit);
+
+      if(heightM <= 0){
+        bmiValue.textContent = '—';
+        bmiText.textContent = 'Height must be greater than zero.';
+        catPill.textContent = '—';
+        output.style.display = 'flex';
+        return;
+      }
+
+      const bmi = weightKg / (heightM * heightM);
+      const rounded = Math.round(bmi * 10) / 10; // 1 decimal place
+
+      const cat = getCategory(rounded);
+
+      bmiValue.textContent = rounded.toFixed(1);
+      bmiText.textContent = `Category: ${cat.text} — BMI ranges: Under <18.5, Normal 18.5–24.9, Over 25–29.9, Obese ≥30`;
+      catPill.textContent = cat.text;
+      catPill.className = 'category ' + (cat.cls || '');
+      output.style.display = 'flex';
+    }
+
+    calcBtn.addEventListener('click', calculateBMI);
+
+    resetBtn.addEventListener('click', ()=>{
+      weightEl.value = '';
+      heightEl.value = '';
+      weightUnitEl.value = 'kg';
+      heightUnitEl.value = 'cm';
+      output.style.display = 'none';
+    });
+
+    // allow Enter to calculate when focus is in inputs
+    [weightEl, heightEl].forEach(el => el.addEventListener('keydown', e => {
+      if(e.key === 'Enter') calculateBMI();
+    }));
+  </script>
+</body>
+</html>
